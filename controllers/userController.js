@@ -103,7 +103,7 @@ export const changePassword = async (req, res) => {
         console.log("New hashed password:", hashedNewPassword);
 
         // ✅ Update user password and save
-        user.password = hashedNewPassword;
+        user.password = hashedPassword;
         await user.save();
         console.log("Password successfully updated.");
 
