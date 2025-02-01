@@ -72,6 +72,7 @@ export const loginUser = async (req, res) => {
     }
 };
 //change password
+
 export const changePassword = async (req, res) => {
     try {
         const userId = req.userId; // Extracted from auth middleware
@@ -83,10 +84,13 @@ export const changePassword = async (req, res) => {
 
         const { oldPassword, newPassword } = req.body;
 
+        // ✅ Check if the stored password is hashed (supports both $2a$ and $2b$)
+        const isHashed = user.password.startsWith("$2a$") || user.password.startsWith("$2b$")  || user.password.startsWith("$2") ; 
+
         // ✅ Compare password correctly whether it's hashed or plain text
-        const isMatch = user.password.startsWith('$2b$')
-            ? await bcrypt.compare(oldPassword, user.password) // Hashed password
-            : oldPassword === user.password; // Plain text password
+        const isMatch = isHashed
+            ? await bcrypt.compare(oldPassword, user.password) // If hashed, use bcrypt
+            : oldPassword === user.password; // If plain text, compare directly
 
         if (!isMatch) {
             return res.status(401).json({ message: "Incorrect old password" });
