@@ -74,11 +74,8 @@ export const loginUser = async (req, res) => {
 //change password
 export const changePassword = async (req, res) => {
     try {
-        console.log("User ID from token:", req.userId);
         const userId = req.userId; // Extracted from auth middleware
-
         const user = await User.findById(userId);
-        console.log("User found in DB:", user);
 
         if (!user || user.is_del) {
             return res.status(404).json({ message: "User not found" });
@@ -86,33 +83,27 @@ export const changePassword = async (req, res) => {
 
         const { oldPassword, newPassword } = req.body;
 
-        let isMatch;
+        // ✅ Compare password correctly whether it's hashed or plain text
+        const isMatch = user.password.startsWith('$2a$')
+            ? await bcrypt.compare(oldPassword, user.password) // Hashed password
+            : oldPassword === user.password; // Plain text password
 
-        if (user.password.startsWith('$2a$')) {
-            // If password is hashed, compare using bcrypt
-            isMatch = await bcrypt.compare(oldPassword, user.password);
-        } else {
-            // If password is plain text, compare directly
-            isMatch = oldPassword === user.password;
-        }
         if (!isMatch) {
-            return res.status(401).json({ message: "Invalid email or password" });
+            return res.status(401).json({ message: "Incorrect old password" });
         }
-        const saltRounds = 10;
-        const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
-        console.log("New hashed password:", hashedNewPassword);
 
-        // ✅ Update user password and save
+        // ✅ Always hash the new password before saving
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
         user.password = hashedPassword;
         await user.save();
-        console.log("Password successfully updated.");
 
         res.status(200).json({ message: "Password changed successfully" });
     } catch (error) {
-        console.error(error);
+        console.error("Error changing password:", error);
         res.status(500).json({ message: "Error changing password" });
     }
 };
+
 
 
 // Get all users
