@@ -1,6 +1,6 @@
 import User from "../models/userModel.js";
 import jwt from "jsonwebtoken";
-import { v2 as cloudinary } from 'cloudinary';
+import bcrypt from "bcrypt"; // Import bcrypt
 
 // Register a new user
 export const registerUser = async (req, res) => {
@@ -18,8 +18,12 @@ export const registerUser = async (req, res) => {
             return res.status(400).json({ message: "User already exists" });
         }
 
-        // Create a new user
-        const newUser = new User({ name, email, password, phone, gender });
+        // Hash the password before saving
+        const saltRounds = 10;
+        const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+        // Create a new user with hashed password
+        const newUser = new User({ name, email, password: hashedPassword, phone, gender });
         await newUser.save();
 
         res.status(201).json({ message: "User created successfully" });
@@ -33,32 +37,30 @@ export const registerUser = async (req, res) => {
 export const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body;
+        
+        // Check if user exists
         const user = await User.findOne({ email });
         if (!user) {
-            return res.status(401).json({ message: 'Invalid email or password' });
+            return res.status(401).json({ message: "Invalid email or password" });
         }
 
-        // Compare passwords (no encryption)
-        const isMatch = password === user.password;
+        // Compare hashed password
+        const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
-            return res.status(401).json({ message: 'Invalid email or password' });
+            return res.status(401).json({ message: "Invalid email or password" });
         }
-
-
 
         // Generate JWT token
-       const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-       //const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '15s' });
-
+        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
         res.status(200).json({
             success: true,
-            message: 'Login successful!',
-            token: token,
+            message: "Login successful!",
+            token,
             data: user,
         });
     } catch (error) {
-        res.status(500).json({ message: "Error logging in user" });
+        res.status(500).json({ message: "Error logging in user", error: error.message });
     }
 };
 
