@@ -1,6 +1,7 @@
 import User from "../models/userModel.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt"; // Import bcrypt
+import { v2 as cloudinary } from 'cloudinary';
 
 // Register a new user
 export const registerUser = async (req, res) => {
@@ -18,8 +19,12 @@ export const registerUser = async (req, res) => {
             return res.status(400).json({ message: "User already exists" });
         }
 
-        // Create a new user
-        const newUser = new User({ name, email, password, phone, gender });
+        // Hash the password before saving
+        const saltRounds = 10;
+        const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+        // Create a new user with hashed password
+        const newUser = new User({ name, email, password: hashedPassword, phone, gender });
         await newUser.save();
 
         res.status(201).json({ message: "User created successfully" });
@@ -33,35 +38,32 @@ export const registerUser = async (req, res) => {
 export const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body;
+        
+        // Check if user exists
         const user = await User.findOne({ email });
         if (!user) {
-            return res.status(401).json({ message: 'Invalid email or password' });
+            return res.status(401).json({ message: "Invalid email or password" });
         }
 
-        // Compare passwords (no encryption)
-        const isMatch = password === user.password;
+        // Compare hashed password
+        const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
-            return res.status(401).json({ message: 'Invalid email or password' });
+            return res.status(401).json({ message: "Invalid email or password" });
         }
-
-
 
         // Generate JWT token
-       const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-       //const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '15s' });
-
+        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
         res.status(200).json({
             success: true,
-            message: 'Login successful!',
-            token: token,
+            message: "Login successful!",
+            token,
             data: user,
         });
     } catch (error) {
-        res.status(500).json({ message: "Error logging in user" });
+        res.status(500).json({ message: "Error logging in user", error: error.message });
     }
 };
-
 
 // Get all users
 export const getAllUsers = async (req, res) => {
@@ -178,25 +180,41 @@ export const deleteUser = async (req, res) => {
 //change password
 export const changePassword = async (req, res) => {
     try {
-        const userId = req.userId;
+        const userId = req.userId; // Assuming userId comes from auth middleware
         const user = await User.findById(userId);
+
         if (!user || user.is_del) {
             return res.status(404).json({ message: "User not found" });
         }
 
         const { oldPassword, newPassword } = req.body;
 
-        if (user.password !== oldPassword) {
-            return res.status(401).json({ message: "Incorrect old password" });
+        // Check if the stored password is hashed or plain text
+        if (user.password.startsWith('$2a$')) {
+            // If the password is hashed, compare using bcrypt
+            const isOldPasswordCorrect = await bcrypt.compare(oldPassword, user.password);
+            if (!isOldPasswordCorrect) {
+                return res.status(401).json({ message: "Incorrect old password" });
+            }
+        } else {
+            // If the password is plain text, directly compare
+            if (user.password !== oldPassword) {
+                return res.status(401).json({ message: "Incorrect old password" });
+            }
         }
 
-        await User.findByIdAndUpdate(userId, { password: newPassword });
+        // Hash the new password before saving it (for both plain text or hashed password case)
+        const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+
+        // Update the password in the database
+        await User.findByIdAndUpdate(userId, { password: hashedNewPassword });
+
         res.status(200).json({ message: "Password changed successfully" });
     } catch (error) {
+        console.error(error);
         res.status(500).json({ message: "Error changing password" });
     }
 };
-
 // Update the Cloudinary configuration
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_NAME,
