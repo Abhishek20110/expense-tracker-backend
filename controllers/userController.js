@@ -179,21 +179,30 @@ export const deleteUser = async (req, res) => {
 //change password
 export const changePassword = async (req, res) => {
     try {
-        const userId = req.userId;
+        const userId = req.userId; // Assuming userId comes from auth middleware
         const user = await User.findById(userId);
+
         if (!user || user.is_del) {
             return res.status(404).json({ message: "User not found" });
         }
 
         const { oldPassword, newPassword } = req.body;
 
-        if (user.password !== oldPassword) {
+        // Check if old password matches
+        const isOldPasswordCorrect = await bcrypt.compare(oldPassword, user.password);
+        if (!isOldPasswordCorrect) {
             return res.status(401).json({ message: "Incorrect old password" });
         }
 
-        await User.findByIdAndUpdate(userId, { password: newPassword });
+        // Hash the new password
+        const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+
+        // Update the password in the database
+        await User.findByIdAndUpdate(userId, { password: hashedNewPassword });
+
         res.status(200).json({ message: "Password changed successfully" });
     } catch (error) {
+        console.error(error);
         res.status(500).json({ message: "Error changing password" });
     }
 };
