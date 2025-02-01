@@ -96,7 +96,7 @@ export const changePassword = async (req, res) => {
             isMatch = oldPassword === user.password;
         }
         if (!isMatch) {
-            return res.status(401).json({ message: "Invalid email or password" });
+            return res.status(402).json({ message: "Invalid email or password" });
         }
 
         // ✅ Always hash the new password before saving
