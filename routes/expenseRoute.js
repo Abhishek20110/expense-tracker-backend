@@ -40,4 +40,7 @@ expenseRouter.put('/update/:expenseId', upload.none(), userAuth, updateExpense);
 // Delete expense
 expenseRouter.delete('/delete/:expenseId', userAuth, deleteExpense);
 
+// Delete expense copy according to app
+expenseRouter.delete('//delete/:expenseId', userAuth, deleteExpense);
+
 export default expenseRouter;
