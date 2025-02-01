@@ -45,7 +45,7 @@ export const loginUser = async (req, res) => {
 
         let isMatch;
 
-        if (user.password.startsWith('$2a$')) {
+        if (user.password.startsWith('$2b$')) {
             // If password is hashed, compare using bcrypt
             isMatch = await bcrypt.compare(password, user.password);
         } else {
@@ -84,7 +84,7 @@ export const changePassword = async (req, res) => {
         const { oldPassword, newPassword } = req.body;
 
         // ✅ Compare password correctly whether it's hashed or plain text
-        const isMatch = user.password.startsWith('$2a$')
+        const isMatch = user.password.startsWith('$2b$')
             ? await bcrypt.compare(oldPassword, user.password) // Hashed password
             : oldPassword === user.password; // Plain text password
 
