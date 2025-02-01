@@ -18,12 +18,8 @@ export const registerUser = async (req, res) => {
             return res.status(400).json({ message: "User already exists" });
         }
 
-        // Hash the password before saving
-        const saltRounds = 10;
-        const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-        // Create a new user with hashed password
-        const newUser = new User({ name, email, password: hashedPassword, phone, gender });
+        // Create a new user
+        const newUser = new User({ name, email, password, phone, gender });
         await newUser.save();
 
         res.status(201).json({ message: "User created successfully" });
@@ -37,32 +33,35 @@ export const registerUser = async (req, res) => {
 export const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body;
-        
-        // Check if user exists
         const user = await User.findOne({ email });
         if (!user) {
-            return res.status(401).json({ message: "Invalid email or password" });
+            return res.status(401).json({ message: 'Invalid email or password' });
         }
 
-        // Compare hashed password
-        const isMatch = await bcrypt.compare(password, user.password);
+        // Compare passwords (no encryption)
+        const isMatch = password === user.password;
         if (!isMatch) {
-            return res.status(401).json({ message: "Invalid email or password" });
+            return res.status(401).json({ message: 'Invalid email or password' });
         }
+
+
 
         // Generate JWT token
-        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+       const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+       //const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '15s' });
+
 
         res.status(200).json({
             success: true,
-            message: "Login successful!",
-            token,
+            message: 'Login successful!',
+            token: token,
             data: user,
         });
     } catch (error) {
-        res.status(500).json({ message: "Error logging in user", error: error.message });
+        res.status(500).json({ message: "Error logging in user" });
     }
 };
+
 
 // Get all users
 export const getAllUsers = async (req, res) => {
@@ -179,33 +178,21 @@ export const deleteUser = async (req, res) => {
 //change password
 export const changePassword = async (req, res) => {
     try {
-        const userId = req.userId; // Assuming userId comes from auth middleware
+        const userId = req.userId;
         const user = await User.findById(userId);
-
         if (!user || user.is_del) {
             return res.status(404).json({ message: "User not found" });
         }
+
         const { oldPassword, newPassword } = req.body;
-        // Check if the stored password is hashed or plain text
-        if (user.password.startsWith('$2a$')) {
-            // If the password is hashed, compare using bcrypt
-            const isOldPasswordCorrect = await bcrypt.compare(oldPassword, user.password);
-            if (!isOldPasswordCorrect) {
-                return res.status(401).json({ message: "Incorrect old password" });
-            }
-        } else {
-            // If the password is plain text, directly compare
-            if (user.password !== oldPassword) {
-                return res.status(401).json({ message: "Incorrect old password" });
-            }
+
+        if (user.password !== oldPassword) {
+            return res.status(401).json({ message: "Incorrect old password" });
         }
-        // Hash the new password before saving it (for both plain text or hashed password case)
-        const hashedNewPassword = await bcrypt.hash(newPassword, 10);
-        // Update the password in the database
-        await User.findByIdAndUpdate(userId, { password: hashedNewPassword });
+
+        await User.findByIdAndUpdate(userId, { password: newPassword });
         res.status(200).json({ message: "Password changed successfully" });
     } catch (error) {
-        console.error(error);
         res.status(500).json({ message: "Error changing password" });
     }
 };
