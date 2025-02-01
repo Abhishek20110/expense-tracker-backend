@@ -86,19 +86,17 @@ export const changePassword = async (req, res) => {
 
         const { oldPassword, newPassword } = req.body;
 
-        let isOldPasswordCorrect = false;
+        let isMatch;
 
         if (user.password.startsWith('$2a$')) {
-            // Password is hashed → Use bcrypt.compare()
-            isOldPasswordCorrect = await bcrypt.compare(oldPassword, user.password);
+            // If password is hashed, compare using bcrypt
+            isMatch = await bcrypt.compare(oldPassword, user.password);
         } else {
-            // Password is plain text → Compare directly
-            isOldPasswordCorrect = oldPassword === user.password;
+            // If password is plain text, compare directly
+            isMatch = oldPassword === user.password;
         }
-
-        console.log("Old password correct:", isOldPasswordCorrect);
-        if (!isOldPasswordCorrect) {
-            return res.status(401).json({ message: "Incorrect old password" });
+        if (!isMatch) {
+            return res.status(401).json({ message: "Invalid email or password" });
         }
 
         // ✅ Always hash the new password before saving
