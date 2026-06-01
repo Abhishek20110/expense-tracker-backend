@@ -131,7 +131,65 @@ export const totalExpenses = async (req, res) => {
 };
 
 //permonth expense with month name 
+
+// per month expense with month and year
 export const perMonthExpense = async (req, res) => {
+    try {
+        const userId = req.userId;
+
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                message: "User not authenticated",
+            });
+        }
+
+        const expenses = await Expense.find({
+            user_id: userId,
+            is_del: false,
+        }).sort({ date: 1 });
+
+        const monthlyExpenses = {};
+
+        expenses.forEach((expense) => {
+            const expenseDate = new Date(expense.date);
+
+            const monthYear = expenseDate.toLocaleString("default", {
+                month: "long",
+                year: "numeric",
+            });
+
+            if (!monthlyExpenses[monthYear]) {
+                monthlyExpenses[monthYear] = 0;
+            }
+
+            monthlyExpenses[monthYear] += Number(expense.amount);
+        });
+
+        const result = Object.entries(monthlyExpenses).map(
+            ([name, amount]) => ({
+                name,
+                amount,
+            })
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: "Per month expense fetched successfully",
+            data: result,
+        });
+    } catch (error) {
+        console.error("Error getting per month expense:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Error getting per month expense",
+        });
+    }
+};
+
+
+
+export const perMonthExpenseold = async (req, res) => {
     try {
         const userId = req.userId;
         if (!userId) {
